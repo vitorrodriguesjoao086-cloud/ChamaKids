@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#00529C">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ChamaKids">
+<title>ChamaKids</title>
+<style>
+  :root {
+    --fundo: #F3F6FA;
+    --tinta: #0F2A47;
+    --azul: #00529C;
+    --azul-esc: #003A6E;
+    --vermelho: #C92127;
+    --vermelho-esc: #A31A1F;
+    --amarelo: #E8C31B;
+    --botao: #FFFFFF;
+    --borda: #B9C8DA;
+    font-family: ui-rounded, "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--fundo); color: var(--tinta); display: flex; flex-direction: column; }
+
+  header {
+    background: #fff; border-bottom: 5px solid var(--vermelho);
+    padding: calc(10px + env(safe-area-inset-top)) 18px 10px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  header img { height: 58px; width: auto; display: block; }
+  header h1 { margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--azul); line-height: 1.1; }
+  header p { margin: 3px 0 0; font-size: .95rem; color: #4A5D75; }
+
+  main { flex: 1; overflow-y: auto; padding: 14px 14px 150px; }
+  .grade { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-width: 520px; margin: 0 auto; }
+  .num {
+    aspect-ratio: 1; border: 2px solid var(--borda); border-radius: 14px;
+    background: var(--botao); color: var(--azul);
+    font: inherit; font-size: 1.5rem; font-weight: 800; cursor: pointer;
+    transition: transform .08s, background .12s, border-color .12s;
+  }
+  .num:active { transform: scale(.94); }
+  .num[aria-pressed="true"] { background: var(--vermelho); border-color: var(--vermelho); color: #fff; }
+  .num:focus-visible, .acao:focus-visible { outline: 3px solid var(--azul); outline-offset: 2px; }
+
+  .barra {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: #fff; border-top: 1px solid var(--borda);
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+    box-shadow: 0 -6px 18px rgba(20,33,61,.08);
+  }
+  .barra-i { max-width: 520px; margin: 0 auto; }
+  .dica { margin: 0; text-align: center; color: #4A5D75; font-size: 1.05rem; padding: 14px 0; }
+  .pergunta { margin: 0 0 10px; text-align: center; font-size: 1.15rem; }
+  .pergunta strong { font-size: 1.7rem; color: var(--vermelho); }
+  .botoes { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+  .acao {
+    font: inherit; font-size: 1.15rem; font-weight: 700; border-radius: 14px;
+    padding: 16px; cursor: pointer; border: 2px solid var(--azul);
+  }
+  .voltar { background: #fff; color: var(--azul); }
+  .chamar { background: var(--vermelho); border-color: var(--vermelho); color: #fff; }
+  .acao:disabled { opacity: .6; }
+  [hidden] { display: none !important; }
+
+  .aviso {
+    position: fixed; inset: 0; background: rgba(0,58,110,.96); color: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 30px; gap: 10px;
+  }
+  .aviso .grande { font-size: 5rem; font-weight: 800; line-height: 1; }
+  .aviso p { margin: 0; font-size: 1.2rem; max-width: 22ch; }
+  .aviso .sub { font-size: 1rem; opacity: .85; max-width: 30ch; }
+  .aviso.erro { background: var(--amarelo); color: #1B1B1B; }
+  .aviso button {
+    margin-top: 16px; font: inherit; font-weight: 700; font-size: 1.05rem;
+    padding: 12px 26px; border-radius: 12px; border: 2px solid currentColor; background: transparent; color: inherit; cursor: pointer;
+  }
+  @media (prefers-reduced-motion: reduce) { .num { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <img src="/logo.png" alt="Crianças Verbo da Vida">
+  <div>
+    <h1>ChamaKids</h1>
+    <p>Toque no número da criança</p>
+  </div>
+</header>
+
+<main>
+  <div class="grade" id="grade" role="group" aria-label="Números de 0 a 100"></div>
+</main>
+
+<div class="barra">
+  <div class="barra-i">
+    <p class="dica" id="dica">Nenhum número escolhido</p>
+    <div id="confirmar" hidden>
+      <p class="pergunta">Chamar o número <strong id="escolhido"></strong>?</p>
+      <div class="botoes">
+        <button class="acao voltar" id="voltar" type="button">Voltar</button>
+        <button class="acao chamar" id="chamar" type="button">Chamar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="aviso" id="aviso" role="status" aria-live="polite" hidden></div>
+
+<script>
+const grade = document.getElementById('grade');
+const dica = document.getElementById('dica');
+const confirmar = document.getElementById('confirmar');
+const escolhidoEl = document.getElementById('escolhido');
+const btnChamar = document.getElementById('chamar');
+const aviso = document.getElementById('aviso');
+let escolhido = null;
+let fechaAviso = null;
+
+for (let n = 0; n <= 100; n++) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'num';
+  b.textContent = n;
+  b.setAttribute('aria-pressed', 'false');
+  b.addEventListener('click', () => escolher(n));
+  grade.appendChild(b);
+}
+
+function escolher(n) {
+  escolhido = n;
+  [...grade.children].forEach((b, i) => b.setAttribute('aria-pressed', String(i === n)));
+  escolhidoEl.textContent = n;
+  dica.hidden = true;
+  confirmar.hidden = false;
+}
+
+function limpar() {
+  escolhido = null;
+  [...grade.children].forEach((b) => b.setAttribute('aria-pressed', 'false'));
+  confirmar.hidden = true;
+  dica.hidden = false;
+}
+
+function mostrarAviso(html, { erro = false, segundos = 3 } = {}) {
+  clearTimeout(fechaAviso);
+  aviso.className = 'aviso' + (erro ? ' erro' : '');
+  aviso.innerHTML = html;
+  aviso.hidden = false;
+  const fechar = () => { aviso.hidden = true; };
+  const botao = aviso.querySelector('button');
+  if (botao) botao.addEventListener('click', fechar);
+  if (segundos) fechaAviso = setTimeout(fechar, segundos * 1000);
+}
+
+document.getElementById('voltar').addEventListener('click', limpar);
+
+btnChamar.addEventListener('click', async () => {
+  if (escolhido === null) return;
+  const numero = escolhido;
+  btnChamar.disabled = true;
+  try {
+    const r = await fetch('/chamar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ numero }),
+    });
+    const dados = await r.json();
+    if (!r.ok || !dados.ok) throw new Error(dados.erro || 'Falha');
+    if (dados.ouvintes === 0) {
+      mostrarAviso(
+        `<div class="grande">${numero}</div><p>Enviado, mas ninguém recebeu</p>
+         <p class="sub">O computador da comunicação não está conectado. Avise a equipe pessoalmente.</p>
+         <button type="button">Entendi</button>`,
+        { erro: true, segundos: 0 }
+      );
+    } else {
+      mostrarAviso(`<div class="grande">${numero}</div><p>Chamado enviado</p>`);
+    }
+    limpar();
+  } catch {
+    mostrarAviso(
+      `<p>Não foi possível enviar.</p>
+       <p class="sub">Confira o Wi-Fi ou os dados do celular e tente de novo.</p>
+       <button type="button">Fechar</button>`,
+      { erro: true, segundos: 0 }
+    );
+  } finally {
+    btnChamar.disabled = false;
+  }
+});
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+</script>
+</body>
+</html>

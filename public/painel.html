@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChamaKids · Painel da comunicação</title>
+<link rel="icon" href="/icon-192.png">
+<style>
+  :root {
+    --fundo: #F3F6FA; --tinta: #0F2A47; --azul: #00529C; --azul-esc: #003A6E; --borda: #B9C8DA;
+    --vermelho: #C92127; --amarelo: #E8C31B; --ok: #3E9B3E; --erro: #C92127;
+    font-family: ui-rounded, "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--fundo); color: var(--tinta); display: grid; place-items: center; padding: 24px; }
+  .cartao { background: #fff; border: 1px solid var(--borda); border-radius: 18px; padding: 28px; max-width: 440px; width: 100%; }
+  .marca { display: flex; align-items: center; gap: 14px; padding-bottom: 14px; border-bottom: 5px solid var(--vermelho); margin: -28px -28px 18px; padding: 16px 28px; }
+  .marca img { height: 56px; width: auto; display: block; }
+  h1 { margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--azul); line-height: 1.1; }
+  .marca p { margin: 2px 0 0; color: #4A5D75; font-size: .95rem; }
+  .estado { display: flex; align-items: center; gap: 10px; margin: 14px 0; font-weight: 600; }
+  .ponto { width: 12px; height: 12px; border-radius: 50%; background: var(--erro); }
+  .ponto.on { background: var(--ok); }
+  p { line-height: 1.5; margin: 8px 0; }
+  .peq { color: #4A5D75; font-size: .95rem; }
+  .linha { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  button {
+    font: inherit; font-weight: 700; padding: 12px 18px; border-radius: 12px; cursor: pointer;
+    border: 2px solid var(--azul); background: var(--azul); color: #fff;
+  }
+  button.sec { background: #fff; color: var(--azul); }
+  button:focus-visible { outline: 3px solid var(--vermelho); outline-offset: 2px; }
+  .ultimo { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--borda); }
+  .ultimo strong { font-size: 2.4rem; color: var(--vermelho); }
+
+  /* Alerta no canto inferior direito */
+  .toast {
+    position: fixed; right: 20px; bottom: 20px; z-index: 10;
+    background: var(--azul); color: #fff; border-radius: 14px; padding: 14px 18px;
+    display: flex; align-items: center; gap: 14px; min-width: 240px;
+    box-shadow: 0 10px 30px rgba(0,58,110,.4); border-left: 8px solid var(--vermelho);
+    cursor: pointer; animation: entrar .22s ease-out;
+  }
+  .toast .rotulo { font-size: .9rem; opacity: .85; }
+  .toast .valor { font-size: 2.2rem; font-weight: 800; line-height: 1; }
+  .toast[hidden] { display: none; }
+  @keyframes entrar { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+</style>
+</head>
+<body>
+<div class="cartao">
+  <div class="marca">
+    <img src="/logo.png" alt="Crianças Verbo da Vida">
+    <div><h1>ChamaKids</h1><p>Painel da comunicação</p></div>
+  </div>
+  <div class="estado"><span class="ponto" id="ponto"></span><span id="estado">Conectando…</span></div>
+  <p>Deixe esta página aberta no computador. Quando uma professora chamar, o número aparece no canto inferior direito.</p>
+  <p class="peq" id="notifEstado"></p>
+  <div class="linha">
+    <button id="ativar" type="button">Ativar notificações</button>
+    <button id="testar" class="sec" type="button">Testar aviso</button>
+  </div>
+  <div class="ultimo" id="ultimo" hidden>
+    Último chamado: <strong id="ultimoNum"></strong>
+    <div class="peq" id="ultimoHora"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="alert" hidden title="Clique para fechar">
+  <div><div class="rotulo">Chamando o número</div><div class="valor" id="toastNum"></div></div>
+</div>
+
+<script>
+const ponto = document.getElementById('ponto');
+const estado = document.getElementById('estado');
+const toast = document.getElementById('toast');
+const toastNum = document.getElementById('toastNum');
+const notifEstado = document.getElementById('notifEstado');
+const btnAtivar = document.getElementById('ativar');
+let registro = null;
+
+toast.addEventListener('click', () => { toast.hidden = true; });
+
+function atualizarNotifEstado() {
+  if (!('Notification' in window)) { notifEstado.textContent = 'Este navegador não suporta notificações. O alerta aparecerá só nesta página.'; btnAtivar.hidden = true; return; }
+  const p = Notification.permission;
+  if (p === 'granted') { notifEstado.textContent = 'Notificações ativadas.'; btnAtivar.hidden = true; }
+  else if (p === 'denied') { notifEstado.textContent = 'Notificações bloqueadas. Libere nas configurações do navegador (ícone de cadeado ao lado do endereço). Enquanto isso, o alerta aparece só nesta página.'; btnAtivar.hidden = true; }
+  else { notifEstado.textContent = 'Ative as notificações para o aviso aparecer mesmo com o navegador minimizado.'; btnAtivar.hidden = false; }
+}
+
+btnAtivar.addEventListener('click', async () => { await Notification.requestPermission(); atualizarNotifEstado(); });
+
+async function avisar(numero) {
+  toastNum.textContent = numero;
+  toast.hidden = false;
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const opcoes = {
+      body: 'Chamar o responsável',
+      icon: '/icon-192.png',
+      tag: 'chamada',      // mesma etiqueta: o novo chamado substitui o anterior
+      renotify: true,
+      silent: true,        // sem som
+    };
+    try {
+      if (registro) await registro.showNotification(`Número ${numero}`, opcoes);
+      else new Notification(`Número ${numero}`, opcoes);
+    } catch { /* o alerta na página já foi mostrado */ }
+  }
+}
+
+function registrarChamado(numero) {
+  document.getElementById('ultimoNum').textContent = numero;
+  document.getElementById('ultimoHora').textContent = 'às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('ultimo').hidden = false;
+  avisar(numero);
+}
+
+document.getElementById('testar').addEventListener('click', () => registrarChamado(23));
+
+function conectar() {
+  const fonte = new EventSource('/events');
+  fonte.onopen = () => { ponto.className = 'ponto on'; estado.textContent = 'Conectado e aguardando chamados'; };
+  fonte.onerror = () => { ponto.className = 'ponto'; estado.textContent = 'Sem conexão. Tentando reconectar…'; };
+  fonte.onmessage = (e) => { try { registrarChamado(JSON.parse(e.data).numero); } catch {} };
+}
+
+(async () => {
+  if ('serviceWorker' in navigator) {
+    try { registro = await navigator.serviceWorker.register('/sw.js'); await navigator.serviceWorker.ready; } catch {}
+  }
+  atualizarNotifEstado();
+  conectar();
+})();
+</script>
+</body>
+</html>
