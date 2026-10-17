@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ChamaKids · Painel da comunicação</title>
 <link rel="icon" href="/icon-192.png">
+<link rel="manifest" href="/painel.webmanifest">
+<meta name="theme-color" content="#00529C">
 <style>
   :root {
     --fundo: #F3F6FA; --tinta: #0F2A47; --azul: #00529C; --azul-esc: #003A6E; --borda: #B9C8DA;
@@ -44,6 +46,7 @@
   .toast .rotulo { font-size: .9rem; opacity: .85; }
   .toast .valor { font-size: 2.2rem; font-weight: 800; line-height: 1; }
   .toast[hidden] { display: none; }
+  [hidden] { display: none !important; }
   @keyframes entrar { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 </style>
@@ -60,6 +63,7 @@
   <div class="linha">
     <button id="ativar" type="button">Ativar notificações</button>
     <button id="testar" class="sec" type="button">Testar aviso</button>
+    <button id="instalarPainel" type="button" hidden>Instalar como aplicativo</button>
   </div>
   <div class="ultimo" id="ultimo" hidden>
     Último chamado: <strong id="ultimoNum"></strong>
@@ -125,6 +129,23 @@ function conectar() {
   fonte.onerror = () => { ponto.className = 'ponto'; estado.textContent = 'Sem conexão. Tentando reconectar…'; };
   fonte.onmessage = (e) => { try { registrarChamado(JSON.parse(e.data).numero); } catch {} };
 }
+
+// Instalar o painel como aplicativo (abre em janela própria)
+const btnInstalarPainel = document.getElementById('instalarPainel');
+let eventoInstalar = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  eventoInstalar = e;
+  btnInstalarPainel.hidden = false;
+});
+window.addEventListener('appinstalled', () => { btnInstalarPainel.hidden = true; });
+btnInstalarPainel.addEventListener('click', async () => {
+  if (!eventoInstalar) return;
+  eventoInstalar.prompt();
+  await eventoInstalar.userChoice;
+  eventoInstalar = null;
+  btnInstalarPainel.hidden = true;
+});
 
 (async () => {
   if ('serviceWorker' in navigator) {

@@ -35,6 +35,22 @@
   header h1 { margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--azul); line-height: 1.1; }
   header p { margin: 3px 0 0; font-size: .95rem; color: #4A5D75; }
 
+  .instalar {
+    background: #E6EFFA; border-bottom: 1px solid var(--borda);
+    padding: 10px 14px; display: flex; align-items: center; gap: 10px;
+  }
+  .instalar-txt { flex: 1; font-size: .95rem; line-height: 1.35; color: var(--tinta); }
+  .instalar-txt strong { display: block; color: var(--azul); font-size: 1rem; }
+  .instalar .ok {
+    font: inherit; font-weight: 800; font-size: 1rem; padding: 10px 16px; border-radius: 12px;
+    border: 2px solid var(--vermelho); background: var(--vermelho); color: #fff; cursor: pointer;
+  }
+  .instalar .x {
+    font: inherit; font-size: 1.2rem; line-height: 1; padding: 8px 10px; border-radius: 10px;
+    border: 0; background: transparent; color: #4A5D75; cursor: pointer;
+  }
+  .instalar button:focus-visible { outline: 3px solid var(--azul); outline-offset: 2px; }
+
   main { flex: 1; overflow-y: auto; padding: 14px 14px 150px; }
   .grade { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-width: 520px; margin: 0 auto; }
   .num {
@@ -91,6 +107,15 @@
     <p>Toque no número da criança</p>
   </div>
 </header>
+
+<div class="instalar" id="instalar" hidden>
+  <div class="instalar-txt">
+    <strong>Instale o ChamaKids</strong>
+    <span id="instalarDica">Deixe o app na tela inicial do celular.</span>
+  </div>
+  <button class="ok" id="instalarBtn" type="button">Instalar</button>
+  <button class="x" id="instalarFechar" type="button" aria-label="Fechar aviso de instalação">✕</button>
+</div>
 
 <main>
   <div class="grade" id="grade" role="group" aria-label="Números de 0 a 100"></div>
@@ -193,6 +218,46 @@ btnChamar.addEventListener('click', async () => {
     btnChamar.disabled = false;
   }
 });
+
+// ---- Aviso para instalar o app ----
+const caixaInstalar = document.getElementById('instalar');
+const btnInstalar = document.getElementById('instalarBtn');
+const dicaInstalar = document.getElementById('instalarDica');
+let eventoInstalar = null;
+
+const jaInstalado = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+const ehIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let fechadoAntes = false;
+try { fechadoAntes = localStorage.getItem('instalarFechado') === '1'; } catch {}
+
+function mostrarInstalar({ manual }) {
+  if (jaInstalado || fechadoAntes) return;
+  if (manual) {
+    btnInstalar.hidden = true;
+    dicaInstalar.textContent = 'Toque em Compartilhar e depois em “Adicionar à Tela de Início”.';
+  }
+  caixaInstalar.hidden = false;
+}
+function esconderInstalar(lembrar) {
+  caixaInstalar.hidden = true;
+  if (lembrar) { try { localStorage.setItem('instalarFechado', '1'); } catch {} }
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  eventoInstalar = e;
+  mostrarInstalar({ manual: false });
+});
+window.addEventListener('appinstalled', () => esconderInstalar(false));
+btnInstalar.addEventListener('click', async () => {
+  if (!eventoInstalar) return;
+  eventoInstalar.prompt();
+  await eventoInstalar.userChoice;
+  eventoInstalar = null;
+  esconderInstalar(false);
+});
+document.getElementById('instalarFechar').addEventListener('click', () => esconderInstalar(true));
+if (ehIOS) mostrarInstalar({ manual: true });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 </script>
