@@ -96,21 +96,56 @@ function atualizarNotifEstado() {
 
 btnAtivar.addEventListener('click', async () => { await Notification.requestPermission(); atualizarNotifEstado(); });
 
+// Tempo que a notificação do Windows fica na tela (em milissegundos)
+const DURACAO_AVISO_MS = 10000;
+
+// Desenha uma imagem grande (azul e vermelho) com o número, para aparecer dentro da notificação
+function gerarImagem(numero) {
+  const c = document.createElement('canvas');
+  c.width = 720; c.height = 360;
+  const x = c.getContext('2d');
+  x.fillStyle = '#00529C'; x.fillRect(0, 0, 720, 360);
+  x.fillStyle = '#C92127'; x.fillRect(0, 0, 30, 360);
+  x.textAlign = 'center';
+  x.fillStyle = 'rgba(255,255,255,0.88)';
+  x.font = '600 42px "Segoe UI", system-ui, sans-serif';
+  x.fillText('Chamando o número', 375, 82);
+  x.fillStyle = '#FFFFFF';
+  x.font = '800 230px "Segoe UI", system-ui, sans-serif';
+  x.fillText(String(numero), 375, 300);
+  return c.toDataURL('image/png');
+}
+
+async function mostrarNotificacao(numero, opcoes) {
+  const titulo = `Número ${numero}`;
+  if (registro) {
+    await registro.showNotification(titulo, opcoes);
+    const sw = registro.active || navigator.serviceWorker.controller;
+    if (sw) sw.postMessage({ tipo: 'fechar-chamada', em: opcoes.data.em, ms: DURACAO_AVISO_MS });
+  } else {
+    const n = new Notification(titulo, opcoes);
+    setTimeout(() => n.close(), DURACAO_AVISO_MS);
+  }
+}
+
 async function avisar(numero) {
   toastNum.textContent = numero;
   toast.hidden = false;
-  if ('Notification' in window && Notification.permission === 'granted') {
-    const opcoes = {
-      body: 'Chamar o responsável',
-      icon: '/icon-192.png',
-      tag: 'chamada',      // mesma etiqueta: o novo chamado substitui o anterior
-      renotify: true,
-      silent: true,        // sem som
-    };
-    try {
-      if (registro) await registro.showNotification(`Número ${numero}`, opcoes);
-      else new Notification(`Número ${numero}`, opcoes);
-    } catch { /* o alerta na página já foi mostrado */ }
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const opcoes = {
+    body: 'Chamar o responsável',
+    icon: '/icon-192.png',
+    image: gerarImagem(numero),
+    tag: 'chamada',            // mesma etiqueta: o novo chamado substitui o anterior
+    renotify: true,
+    silent: true,              // sem som
+    requireInteraction: true,  // não some sozinho em 5 segundos; fechamos depois do tempo definido acima
+    data: { em: Date.now() },
+  };
+  try {
+    await mostrarNotificacao(numero, opcoes);
+  } catch {
+    try { delete opcoes.image; await mostrarNotificacao(numero, opcoes); } catch { /* o alerta na página já foi mostrado */ }
   }
 }
 

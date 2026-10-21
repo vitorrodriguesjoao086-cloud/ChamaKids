@@ -1,4 +1,4 @@
-const CACHE = 'chamakids-v2';
+const CACHE = 'chamakids-v3';
 const BASE = ['/', '/painel', '/manifest.webmanifest', '/icon-192.png', '/logo.png'];
 
 self.addEventListener('install', (e) => {
@@ -20,6 +20,18 @@ self.addEventListener('fetch', (e) => {
       .then((r) => { const copia = r.clone(); caches.open(CACHE).then((c) => c.put(request, copia)); return r; })
       .catch(() => caches.match(request))
   );
+});
+// Fecha a notificação do chamado depois do tempo combinado (só a notificação daquele chamado).
+self.addEventListener('message', (e) => {
+  const d = e.data || {};
+  if (d.tipo !== 'fechar-chamada') return;
+  e.waitUntil(new Promise((ok) => setTimeout(async () => {
+    try {
+      const lista = await self.registration.getNotifications({ tag: 'chamada' });
+      lista.forEach((n) => { if (n.data && n.data.em === d.em) n.close(); });
+    } catch {}
+    ok();
+  }, d.ms || 10000)));
 });
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
