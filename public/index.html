@@ -51,6 +51,44 @@
   }
   .instalar button:focus-visible { outline: 3px solid var(--azul); outline-offset: 2px; }
 
+  .conta {
+    background: #fff; border-bottom: 1px solid var(--borda);
+    padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    font-size: .92rem; color: #4A5D75;
+  }
+  .conta .nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .conta .acoes { display: flex; gap: 14px; flex-shrink: 0; }
+  .conta a, .conta button.link {
+    font: inherit; font-weight: 700; color: var(--azul); background: none; border: 0; padding: 4px 0;
+    cursor: pointer; text-decoration: underline;
+  }
+
+  .centro {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 28px 24px; gap: 14px;
+  }
+  .centro h2 { margin: 0; font-size: 1.45rem; color: var(--azul); }
+  .centro p { margin: 0; max-width: 30ch; line-height: 1.5; font-size: 1.05rem; }
+  .centro .email { font-weight: 700; word-break: break-all; color: var(--tinta); }
+  .centro .erro { color: var(--vermelho); font-weight: 700; min-height: 1.4em; }
+  .formulario-acesso { width: min(100%, 360px); display: grid; gap: 10px; text-align: left; }
+  .formulario-acesso label { font-weight: 700; color: var(--tinta); }
+  .formulario-acesso input[type=text], .formulario-acesso input[type=password] {
+    width: 100%; min-width: 0; font: inherit; padding: 12px 14px; border: 2px solid var(--borda);
+    border-radius: 12px; background: #fff; color: var(--tinta);
+  }
+  .formulario-acesso input:focus-visible { outline: 3px solid var(--vermelho); outline-offset: 1px; border-color: var(--azul); }
+  .lembrar { display: flex; align-items: center; gap: 9px; font-weight: 500 !important; }
+  .lembrar input { width: 18px; height: 18px; accent-color: var(--azul); }
+  .botao-principal {
+    font: inherit; font-weight: 800; font-size: 1.05rem; padding: 14px 22px; border-radius: 14px; cursor: pointer;
+    border: 2px solid var(--azul); background: var(--azul); color: #fff;
+  }
+  .botao-sec {
+    font: inherit; font-weight: 700; font-size: 1.05rem; padding: 12px 20px; border-radius: 14px; cursor: pointer;
+    border: 2px solid var(--azul); background: #fff; color: var(--azul);
+  }
+  .centro button:focus-visible { outline: 3px solid var(--vermelho); outline-offset: 2px; }
   main { flex: 1; overflow-y: auto; padding: 14px 14px 150px; }
   .grade { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-width: 520px; margin: 0 auto; }
   .num {
@@ -104,7 +142,7 @@
   <img src="/logo.png" alt="Crianças Verbo da Vida">
   <div>
     <h1>ChamaKids</h1>
-    <p>Toque no número da criança</p>
+    <p id="subtitulo">Toque no número da criança</p>
   </div>
 </header>
 
@@ -117,11 +155,46 @@
   <button class="x" id="instalarFechar" type="button" aria-label="Fechar aviso de instalação">✕</button>
 </div>
 
-<main>
+<div class="conta" id="conta" hidden>
+  <span class="nome" id="contaNome"></span>
+  <span class="acoes">
+    <a href="/admin" id="linkAdmin" hidden>Gerenciar</a>
+    <button type="button" class="link" id="sair">Sair</button>
+  </span>
+</div>
+
+<!-- Carregando -->
+<section class="centro" id="carregando" role="status"><p>Carregando…</p></section>
+
+<!-- Sem internet ao abrir -->
+<section class="centro" id="semRede" hidden>
+  <h2>Sem conexão</h2>
+  <p>Não foi possível abrir o ChamaKids. Confira o Wi-Fi ou os dados do celular.</p>
+  <button type="button" class="botao-principal" id="tentarDeNovo">Tentar de novo</button>
+</section>
+
+<!-- Entrar -->
+<section class="centro" id="login" hidden>
+  <h2 id="loginTitulo">Entre para chamar</h2>
+  <p id="loginDescricao">Acesse com seu nome e senha. O acesso depende da aprovação do administrador.</p>
+  <form class="formulario-acesso" id="formAcesso">
+    <label for="nomeAcesso">Nome completo</label>
+    <input id="nomeAcesso" name="nome" type="text" autocomplete="name" maxlength="80" required>
+    <label for="senhaAcesso">Senha</label>
+    <input id="senhaAcesso" name="senha" type="password" autocomplete="current-password" minlength="8" maxlength="128" required>
+    <label class="lembrar" id="lembrarLinha"><input id="lembrarAcesso" type="checkbox"> Lembrar meu acesso neste dispositivo</label>
+    <button class="botao-principal" id="enviarAcesso" type="submit">Entrar</button>
+  </form>
+  <button class="botao-sec" id="alternarAcesso" type="button">Solicitar acesso</button>
+  <p class="erro" id="loginMsg" role="alert"></p>
+</section>
+
+<!-- App -->
+<main id="principal" hidden>
   <div class="grade" id="grade" role="group" aria-label="Números de 0 a 100"></div>
 </main>
 
-<div class="barra">
+<div class="barra" id="barra" hidden>
   <div class="barra-i">
     <p class="dica" id="dica">Nenhum número escolhido</p>
     <div id="confirmar" hidden>
@@ -137,15 +210,23 @@
 <div class="aviso" id="aviso" role="status" aria-live="polite" hidden></div>
 
 <script>
-const grade = document.getElementById('grade');
-const dica = document.getElementById('dica');
-const confirmar = document.getElementById('confirmar');
-const escolhidoEl = document.getElementById('escolhido');
-const btnChamar = document.getElementById('chamar');
-const aviso = document.getElementById('aviso');
+const $ = (id) => document.getElementById(id);
+const grade = $('grade');
+const dica = $('dica');
+const confirmar = $('confirmar');
+const escolhidoEl = $('escolhido');
+const btnChamar = $('chamar');
+const aviso = $('aviso');
 let escolhido = null;
 let fechaAviso = null;
 
+// ---------- Telas ----------
+const TELAS = ['carregando', 'semRede', 'login', 'principal', 'barra'];
+function mostrar(...visiveis) {
+  TELAS.forEach((t) => { $(t).hidden = !visiveis.includes(t); });
+}
+
+// ---------- Grade de números ----------
 for (let n = 0; n <= 100; n++) {
   const b = document.createElement('button');
   b.type = 'button';
@@ -155,7 +236,6 @@ for (let n = 0; n <= 100; n++) {
   b.addEventListener('click', () => escolher(n));
   grade.appendChild(b);
 }
-
 function escolher(n) {
   escolhido = n;
   [...grade.children].forEach((b, i) => b.setAttribute('aria-pressed', String(i === n)));
@@ -163,7 +243,6 @@ function escolher(n) {
   dica.hidden = true;
   confirmar.hidden = false;
 }
-
 function limpar() {
   escolhido = null;
   [...grade.children].forEach((b) => b.setAttribute('aria-pressed', 'false'));
@@ -181,9 +260,97 @@ function mostrarAviso(html, { erro = false, segundos = 3 } = {}) {
   if (botao) botao.addEventListener('click', fechar);
   if (segundos) fechaAviso = setTimeout(fechar, segundos * 1000);
 }
+$('voltar').addEventListener('click', limpar);
 
-document.getElementById('voltar').addEventListener('click', limpar);
+// ---------- Login e solicitação de acesso ----------
+let modoSolicitacao = false;
+function atualizarFormularioAcesso() {
+  $('loginTitulo').textContent = modoSolicitacao ? 'Solicitar acesso' : 'Entre para chamar';
+  $('loginDescricao').textContent = modoSolicitacao
+    ? 'Crie sua senha. O acesso só será liberado depois da aprovação do administrador.'
+    : 'Acesse com seu nome e senha. O acesso depende da aprovação do administrador.';
+  $('senhaAcesso').autocomplete = modoSolicitacao ? 'new-password' : 'current-password';
+  $('lembrarLinha').hidden = modoSolicitacao;
+  $('enviarAcesso').textContent = modoSolicitacao ? 'Enviar solicitação' : 'Entrar';
+  $('alternarAcesso').textContent = modoSolicitacao ? 'Já tenho acesso' : 'Solicitar acesso';
+  $('loginMsg').textContent = '';
+}
 
+$('alternarAcesso').addEventListener('click', () => {
+  modoSolicitacao = !modoSolicitacao;
+  atualizarFormularioAcesso();
+});
+
+$('formAcesso').addEventListener('submit', async (evento) => {
+  evento.preventDefault();
+  const botao = $('enviarAcesso');
+  const msg = $('loginMsg');
+  botao.disabled = true;
+  msg.textContent = '';
+  try {
+    const r = await fetch(modoSolicitacao ? '/api/acesso/solicitar' : '/api/entrar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome: $('nomeAcesso').value,
+        senha: $('senhaAcesso').value,
+        lembrar: $('lembrarAcesso').checked,
+      }),
+    });
+    const dados = await r.json();
+    if (!r.ok) {
+      msg.textContent = dados.erro || 'Não foi possível concluir. Tente novamente.';
+      return;
+    }
+    if (modoSolicitacao) {
+      msg.textContent = 'Solicitação enviada. Você poderá acessar depois que o administrador aprovar.';
+      $('senhaAcesso').value = '';
+      return;
+    }
+    await iniciar();
+  } catch {
+    msg.textContent = 'Não foi possível conectar. Confira a internet e tente novamente.';
+  } finally {
+    botao.disabled = false;
+  }
+});
+
+$('sair').addEventListener('click', async () => {
+  const botao = $('sair');
+  botao.disabled = true;
+  try {
+    const resposta = await fetch('/api/sair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    if (!resposta.ok) throw new Error('Falha ao encerrar sessão.');
+    location.href = '/';
+  } catch {
+    botao.disabled = false;
+    alert('Não foi possível sair agora. Confira a conexão e tente novamente.');
+  }
+});
+
+async function iniciar() {
+  mostrar('carregando');
+  let eu;
+  try {
+    const r = await fetch('/api/eu', { cache: 'no-store' });
+    if (!r.ok) throw new Error('Falha ao consultar sessão.');
+    eu = await r.json();
+  } catch {
+    mostrar('semRede');
+    return;
+  }
+  const comConta = eu.logado;
+  $('conta').hidden = !comConta;
+  if (comConta) {
+    $('contaNome').textContent = eu.nome ? `${eu.nome} (${eu.email})` : eu.email;
+    $('linkAdmin').hidden = !eu.admin;
+  }
+  if (eu.logado && eu.autorizado) { mostrar('principal', 'barra'); return; }
+  mostrar('login');
+}
+$('tentarDeNovo').addEventListener('click', iniciar);
+
+// ---------- Enviar chamado ----------
 btnChamar.addEventListener('click', async () => {
   if (escolhido === null) return;
   const numero = escolhido;
@@ -194,7 +361,8 @@ btnChamar.addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ numero }),
     });
-    const dados = await r.json();
+    const dados = await r.json().catch(() => ({}));
+    if (r.status === 401 || r.status === 403) { limpar(); await iniciar(); return; } // sessão expirou ou conta sem permissão
     if (!r.ok || !dados.ok) throw new Error(dados.erro || 'Falha');
     if (dados.ouvintes === 0) {
       mostrarAviso(
@@ -219,10 +387,10 @@ btnChamar.addEventListener('click', async () => {
   }
 });
 
-// ---- Aviso para instalar o app ----
-const caixaInstalar = document.getElementById('instalar');
-const btnInstalar = document.getElementById('instalarBtn');
-const dicaInstalar = document.getElementById('instalarDica');
+// ---------- Aviso para instalar o app ----------
+const caixaInstalar = $('instalar');
+const btnInstalar = $('instalarBtn');
+const dicaInstalar = $('instalarDica');
 let eventoInstalar = null;
 
 const jaInstalado = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -242,7 +410,6 @@ function esconderInstalar(lembrar) {
   caixaInstalar.hidden = true;
   if (lembrar) { try { localStorage.setItem('instalarFechado', '1'); } catch {} }
 }
-
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   eventoInstalar = e;
@@ -256,10 +423,11 @@ btnInstalar.addEventListener('click', async () => {
   eventoInstalar = null;
   esconderInstalar(false);
 });
-document.getElementById('instalarFechar').addEventListener('click', () => esconderInstalar(true));
+$('instalarFechar').addEventListener('click', () => esconderInstalar(true));
 if (ehIOS) mostrarInstalar({ manual: true });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+iniciar();
 </script>
 </body>
 </html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#00529C">
+<title>ChamaKids · Administração</title>
+<link rel="icon" href="/icon-192.png">
+<style>
+  :root {
+    --fundo: #F3F6FA; --tinta: #0F2A47; --azul: #00529C; --borda: #B9C8DA;
+    --vermelho: #C92127; --amarelo: #E8C31B; --ok: #2E7D32;
+    font-family: ui-rounded, "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--fundo); color: var(--tinta); padding: 20px 16px 40px; }
+  .pagina { max-width: 700px; margin: 0 auto; }
+  .marca { background: #fff; border: 1px solid var(--borda); border-bottom: 5px solid var(--vermelho); border-radius: 16px 16px 0 0;
+    display: flex; align-items: center; gap: 14px; padding: 14px 20px; }
+  .marca img { height: 52px; width: auto; display: block; }
+  h1 { margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--azul); line-height: 1.1; }
+  .marca p { margin: 2px 0 0; color: #4A5D75; font-size: .92rem; }
+  .cartao { background: #fff; border: 1px solid var(--borda); border-radius: 16px; padding: 20px; margin-top: 16px; }
+  .cartao.topo { border-radius: 0 0 16px 16px; margin-top: 0; border-top: 0; }
+  h2 { margin: 0 0 6px; font-size: 1.15rem; color: var(--azul); }
+  p { line-height: 1.5; margin: 6px 0; }
+  .peq { color: #4A5D75; font-size: .92rem; }
+  .linha { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+  button {
+    font: inherit; font-weight: 700; padding: 10px 14px; border-radius: 12px; cursor: pointer;
+    border: 2px solid var(--azul); background: var(--azul); color: #fff;
+  }
+  button.sec { background: #fff; color: var(--azul); }
+  button.perigo { background: #fff; color: var(--vermelho); border-color: var(--vermelho); }
+  button:disabled { opacity: .6; cursor: default; }
+  button:focus-visible, a:focus-visible { outline: 3px solid var(--vermelho); outline-offset: 2px; }
+  ul { list-style: none; margin: 12px 0 0; padding: 0; }
+  li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-top: 1px solid #E3EAF3; }
+  li:first-child { border-top: 0; }
+  .dados { min-width: 0; }
+  .dados strong { display: block; overflow-wrap: anywhere; }
+  .acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+  .etiqueta { display: inline-block; margin-top: 5px; font-size: .78rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: #E6EFFA; color: var(--azul); }
+  .etiqueta.pending { background: #FFF6D1; color: #735D00; }
+  .etiqueta.approved, .etiqueta.administrador { background: #E7F4E8; color: var(--ok); }
+  .etiqueta.rejected, .etiqueta.revoked { background: #FBE8E8; color: var(--vermelho); }
+  .vazio { color: #4A5D75; padding: 10px 0 0; }
+  .msg { min-height: 1.4em; margin-top: 8px; font-weight: 700; }
+  .msg.erro { color: var(--vermelho); }
+  .msg.ok { color: var(--ok); }
+  a { color: var(--azul); font-weight: 700; }
+  [hidden] { display: none !important; }
+  @media (max-width: 520px) {
+    li { align-items: flex-start; flex-direction: column; }
+    .acoes { justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="pagina">
+  <div class="marca">
+    <img src="/logo.png" alt="Crianças Verbo da Vida">
+    <div><h1>ChamaKids</h1><p>Administração de acessos</p></div>
+  </div>
+  <div class="cartao topo" id="estadoCartao"><p id="estadoTexto">Carregando…</p></div>
+  <div id="painelAdmin" hidden>
+    <div class="cartao">
+      <div class="linha">
+        <div>
+          <h2>Solicitações e acessos</h2>
+          <p class="peq">Aprove ou recuse solicitações pendentes. A revogação encerra o acesso imediatamente.</p>
+        </div>
+        <button type="button" class="sec" id="notificacoes">Ativar notificações</button>
+      </div>
+      <p class="msg" id="msg" role="status"></p>
+      <ul id="lista"></ul>
+      <p class="vazio" id="vazio" hidden>Nenhuma solicitação ou conta para exibir.</p>
+    </div>
+    <p class="peq" style="margin-top:16px"><a href="/">Voltar ao ChamaKids</a></p>
+  </div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+let idsPendentesConhecidos = null;
+let atualizando = false;
+
+function mostrarEstado(texto) {
+  $('estadoTexto').textContent = texto;
+  $('estadoCartao').hidden = false;
+  $('painelAdmin').hidden = true;
+}
+
+function rotuloStatus(status) {
+  return ({
+    pending: 'Aguardando aprovação',
+    approved: 'Acesso permitido',
+    rejected: 'Recusado',
+    revoked: 'Acesso revogado',
+    administrador: 'Administrador',
+  })[status] || status;
+}
+
+function formatarData(valor) {
+  if (!valor) return 'Data indisponível';
+  const data = new Date(valor);
+  return Number.isNaN(data.getTime()) ? 'Data indisponível' : data.toLocaleString('pt-BR');
+}
+
+function itemUsuario(usuario) {
+  const li = document.createElement('li');
+  const dados = document.createElement('div');
+  dados.className = 'dados';
+  const nome = document.createElement('strong');
+  nome.textContent = usuario.nome;
+  const data = document.createElement('span');
+  data.className = 'peq';
+  data.textContent = `Solicitado em ${formatarData(usuario.solicitadaEm)}`;
+  const status = document.createElement('span');
+  status.className = `etiqueta ${usuario.status}`;
+  status.textContent = rotuloStatus(usuario.status);
+  dados.append(nome, data, document.createElement('br'), status);
+  li.appendChild(dados);
+
+  const acoes = document.createElement('div');
+  acoes.className = 'acoes';
+  if (usuario.status === 'pending') {
+    acoes.appendChild(botaoAcao(usuario, 'aprovar', 'Permitir acesso'));
+    acoes.appendChild(botaoAcao(usuario, 'recusar', 'Recusar acesso', true));
+  } else if (usuario.status === 'approved' && !usuario.administrador) {
+    acoes.appendChild(botaoAcao(usuario, 'revogar', 'Revogar acesso', true));
+  }
+  if (acoes.childElementCount) li.appendChild(acoes);
+  return li;
+}
+
+function botaoAcao(usuario, acao, texto, perigo = false) {
+  const botao = document.createElement('button');
+  botao.type = 'button';
+  botao.textContent = texto;
+  if (perigo) botao.className = 'perigo';
+  botao.addEventListener('click', () => alterarAcesso(usuario, acao, botao));
+  return botao;
+}
+
+function desenhar(usuarios) {
+  const lista = $('lista');
+  lista.replaceChildren(...usuarios.map(itemUsuario));
+  $('vazio').hidden = usuarios.length > 0;
+}
+
+async function chamarApi(caminho, corpo) {
+  const resposta = await fetch(caminho, corpo
+    ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+    : { cache: 'no-store' });
+  const dados = await resposta.json();
+  if (!resposta.ok || !dados.ok) {
+    const erro = new Error(dados.erro || 'Não foi possível concluir.');
+    erro.status = resposta.status;
+    throw erro;
+  }
+  return dados;
+}
+
+async function alterarAcesso(usuario, acao, botao) {
+  const confirmacoes = {
+    aprovar: `Permitir que ${usuario.nome} acesse o ChamaKids?`,
+    recusar: `Recusar a solicitação de ${usuario.nome}?`,
+    revogar: `Revogar o acesso de ${usuario.nome}?`,
+  };
+  if (!confirm(confirmacoes[acao])) return;
+  botao.disabled = true;
+  try {
+    const dados = await chamarApi(`/api/admin/usuarios/${usuario.id}/${acao}`, {});
+    desenhar(dados.usuarios);
+    $('msg').className = 'msg ok';
+    $('msg').textContent = acao === 'aprovar' ? 'Acesso permitido.' : acao === 'recusar' ? 'Solicitação recusada.' : 'Acesso revogado.';
+  } catch (erro) {
+    botao.disabled = false;
+    $('msg').className = 'msg erro';
+    $('msg').textContent = erro.message;
+  }
+}
+
+async function atualizarLista() {
+  if (atualizando) return;
+  atualizando = true;
+  try {
+    const dados = await chamarApi('/api/admin/usuarios');
+    const pendentes = dados.usuarios.filter((u) => u.status === 'pending');
+    const atuais = new Set(pendentes.map((u) => u.id));
+    if (idsPendentesConhecidos) {
+      const novaSolicitacao = pendentes.find((u) => !idsPendentesConhecidos.has(u.id));
+      if (novaSolicitacao && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification('Nova solicitação de acesso', {
+          body: `${novaSolicitacao.nome} aguarda aprovação no ChamaKids.`,
+          icon: '/icon-192.png',
+        });
+      }
+    }
+    idsPendentesConhecidos = atuais;
+    desenhar(dados.usuarios);
+    $('msg').textContent = '';
+  } catch (erro) {
+    $('msg').className = 'msg erro';
+    $('msg').textContent = erro.status === 401 || erro.status === 403
+      ? 'Sua sessão administrativa expirou. Entre novamente com a conta do administrador.'
+      : erro.message;
+  } finally {
+    atualizando = false;
+  }
+}
+
+$('notificacoes').addEventListener('click', async () => {
+  if (!('Notification' in window)) {
+    $('msg').className = 'msg erro';
+    $('msg').textContent = 'Este navegador não oferece notificações. Deixe o painel aberto para acompanhar novas solicitações.';
+    return;
+  }
+  const permissao = await Notification.requestPermission();
+  $('msg').className = permissao === 'granted' ? 'msg ok' : 'msg erro';
+  $('msg').textContent = permissao === 'granted'
+    ? 'Notificações ativadas. Mantenha este painel aberto para receber avisos.'
+    : 'Notificações não foram permitidas. Deixe o painel aberto para acompanhar solicitações.';
+});
+
+(async () => {
+  try {
+    const euResposta = await fetch('/api/eu', { cache: 'no-store' });
+    if (!euResposta.ok) throw new Error('Não foi possível verificar a sessão.');
+    const eu = await euResposta.json();
+    if (!eu.logado) {
+      mostrarEstado('Entre com sua conta de administrador para gerenciar acessos.');
+      return;
+    }
+    if (!eu.admin) {
+      mostrarEstado('Esta conta não tem permissão para administrar acessos.');
+      return;
+    }
+    $('estadoCartao').hidden = true;
+    $('painelAdmin').hidden = false;
+    await atualizarLista();
+    setInterval(atualizarLista, 15000);
+  } catch {
+    mostrarEstado('Não foi possível carregar o painel. Confira a conexão e atualize a página.');
+  }
+})();
+</script>
+</body>
+</html>

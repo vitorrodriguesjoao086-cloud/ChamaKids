@@ -1,4 +1,4 @@
-const CACHE = 'chamakids-v3';
+const CACHE = 'chamakids-v5';
 const BASE = ['/', '/painel', '/manifest.webmanifest', '/icon-192.png', '/logo.png'];
 
 self.addEventListener('install', (e) => {
@@ -14,7 +14,9 @@ self.addEventListener('activate', (e) => {
 // Rede primeiro; se estiver offline, abre a última versão guardada.
 self.addEventListener('fetch', (e) => {
   const { request } = e;
-  if (request.method !== 'GET' || new URL(request.url).pathname === '/events') return;
+  const caminho = new URL(request.url).pathname;
+  // Eventos, login e dados de conta nunca passam pelo cache.
+  if (request.method !== 'GET' || caminho === '/events' || caminho.startsWith('/api/')) return;
   e.respondWith(
     fetch(request)
       .then((r) => { const copia = r.clone(); caches.open(CACHE).then((c) => c.put(request, copia)); return r; })
