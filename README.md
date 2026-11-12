@@ -5,7 +5,8 @@ A professora toca no número da criança no celular e a equipe de comunicação 
 ## Como funciona
 
 - **App das professoras** (`/`): grade de 0 a 100. Toca no número, aparece "Chamar o número X?" com os botões Voltar e Chamar.
-- **Painel da comunicação** (`/painel`): página aberta no computador. Mostra o número como notificação e como alerta no canto inferior direito. Um novo chamado substitui o anterior. Sem som, sem fila, sem botão de atendido.
+- **Painel da comunicação** (`/painel`): página aberta no computador, sem login. É um painel somente de exibição: recebe chamados em tempo real, mostra o número como notificação e como alerta no canto inferior direito. Um novo chamado substitui o anterior. Sem som, sem fila, sem botão de atendido.
+- **App das professoras** (`/`) e administração (`/admin`): continuam protegidos por autenticação; somente contas aprovadas podem chamar e apenas o administrador gerencia acessos.
 - Se nenhum computador estiver conectado no momento do chamado, a professora recebe um aviso para falar com a equipe pessoalmente.
 
 ## Configurar administrador
@@ -34,7 +35,7 @@ No Render, defina `ADMIN_NAME` e `ADMIN_PASSWORD` em **Environment**. Para persi
 
 ## Testar no seu computador
 
-Com o servidor ativo e uma conta aprovada, abra `http://localhost:3000/painel` e `http://localhost:3000/` no mesmo navegador. Toque em um número e em Chamar.
+Com o servidor ativo, abra `http://localhost:3000/painel` no computador receptor (não é necessário entrar). Em outro aparelho ou navegador, entre em `http://localhost:3000/` com uma conta aprovada, toque em um número e em Chamar.
 
 ## Colocar no ar (grátis) com Render
 
@@ -52,7 +53,7 @@ Observação: no plano grátis o Render "dorme" depois de um tempo sem uso e a p
 
 - **Professoras (Android):** abrir o endereço no Chrome, menu (três pontos), "Instalar app" ou "Adicionar à tela inicial".
 - **Professoras (iPhone):** abrir no Safari, botão Compartilhar, "Adicionar à Tela de Início".
-- **Comunicação:** abrir `/endereço/painel` no Chrome ou Edge, clicar em "Ativar notificações" e permitir. Deixar a aba aberta (pode ficar minimizada).
+- **Comunicação:** abrir `/endereço/painel` no Chrome ou Edge sem fazer login, clicar em "Ativar notificações" e permitir. Deixar a aba aberta (pode ficar minimizada). Esse painel só recebe e exibe chamados; não permite chamar nem gerenciar contas.
 
 ## Dica para o computador da comunicação
 

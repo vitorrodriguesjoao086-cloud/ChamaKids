@@ -4,7 +4,7 @@
 //   GET  /                   app das professoras (PWA)
 //   GET  /painel              página da comunicação
 //   GET  /admin               painel de aprovação
-//   GET  /events              fluxo em tempo real para a comunicação
+//   GET  /events              fluxo público em tempo real para o painel receptor
 //   GET  /api/eu              estado da sessão atual
 //   POST /api/acesso/solicitar cria uma solicitação de acesso
 //   POST /api/entrar           autentica uma conta aprovada
@@ -498,8 +498,6 @@ async function tratar(req, res) {
   }
 
   if (req.method === 'GET' && pathname === '/events') {
-    const conta = await exigirAprovacao(req, res);
-    if (!conta) return;
     const daOrigem = conexoesPorOrigem.get(origemRede) || 0;
     if (painéis.size >= MAX_PAINEIS_TOTAL || daOrigem >= MAX_PAINEIS_POR_ORIGEM) {
       res.writeHead(429, { 'Content-Type': 'text/plain; charset=utf-8', 'Retry-After': '30' });
@@ -512,7 +510,6 @@ async function tratar(req, res) {
       'X-Accel-Buffering': 'no',
     });
     res.write('retry: 3000\n\n');
-    res.ckSessao = { id: conta.id, versao: conta.sessionVersion || 0 };
     painéis.add(res);
     conexoesPorOrigem.set(origemRede, daOrigem + 1);
     req.on('close', () => {
@@ -576,6 +573,15 @@ async function tratar(req, res) {
     return res.end();
   }
 
+  if (req.method === 'GET' && (pathname === '/admin' || pathname === '/admin.html')) {
+    const conta = lerSessao(req);
+    if (!conta || !conta.admin) {
+      res.writeHead(302, { Location: '/' });
+      return res.end();
+    }
+    return servirArquivo(res, pathname);
+  }
+
   if (req.method === 'GET') return servirArquivo(res, pathname);
   res.writeHead(405);
   res.end();
@@ -592,16 +598,7 @@ const servidor = http.createServer((req, res) => {
 servidor.headersTimeout = 10000;
 servidor.requestTimeout = 15000;
 setInterval(() => {
-  for (const painel of painéis) {
-    const sessao = painel.ckSessao;
-    const conta = sessao && banco.users.find((u) => u.id === sessao.id);
-    if (!conta || conta.status !== 'approved' || (conta.sessionVersion || 0) !== sessao.versao) {
-      painel.write('event: auth-expired\ndata: {}\n\n');
-      painel.end();
-    } else {
-      painel.write(': ping\n\n');
-    }
-  }
+  for (const painel of painéis) painel.write(': ping\n\n');
 }, 20000);
 
 async function iniciarServidor() {

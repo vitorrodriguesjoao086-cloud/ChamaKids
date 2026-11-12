@@ -71,15 +71,6 @@
   </div>
 </div>
 
-<div class="cartao" id="acessoCartao" hidden>
-  <div class="marca">
-    <img src="/logo.png" alt="Crianças Verbo da Vida">
-    <div><h1>ChamaKids</h1><p>Painel da comunicação</p></div>
-  </div>
-  <p id="acessoMensagem">Entre com uma conta aprovada para acessar o painel.</p>
-  <p><a href="/">Ir para o login</a></p>
-</div>
-
 <div class="toast" id="toast" role="alert" hidden title="Clique para fechar">
   <div><div class="rotulo">Chamando o número</div><div class="valor" id="toastNum"></div></div>
 </div>
@@ -170,11 +161,7 @@ document.getElementById('testar').addEventListener('click', () => registrarChama
 function conectar() {
   const fonte = new EventSource('/events');
   fonte.onopen = () => { ponto.className = 'ponto on'; estado.textContent = 'Conectado e aguardando chamados'; };
-  fonte.onerror = () => { ponto.className = 'ponto'; estado.textContent = 'Sem conexão ou sessão expirada. Confira o acesso e tente novamente.'; };
-  fonte.addEventListener('auth-expired', () => {
-    fonte.close();
-    location.href = '/';
-  });
+  fonte.onerror = () => { ponto.className = 'ponto'; estado.textContent = 'Sem conexão. Tentando reconectar…'; };
   fonte.onmessage = (e) => { try { registrarChamado(JSON.parse(e.data).numero); } catch {} };
 }
 
@@ -196,22 +183,6 @@ btnInstalarPainel.addEventListener('click', async () => {
 });
 
 (async () => {
-  let eu;
-  try {
-    const resposta = await fetch('/api/eu', { cache: 'no-store' });
-    if (!resposta.ok) throw new Error('Falha ao verificar acesso.');
-    eu = await resposta.json();
-  } catch {
-    document.getElementById('painelCartao').hidden = true;
-    document.getElementById('acessoCartao').hidden = false;
-    document.getElementById('acessoMensagem').textContent = 'Não foi possível verificar o acesso. Confira sua conexão e atualize a página.';
-    return;
-  }
-  if (!eu.logado || !eu.autorizado) {
-    document.getElementById('painelCartao').hidden = true;
-    document.getElementById('acessoCartao').hidden = false;
-    return;
-  }
   if ('serviceWorker' in navigator) {
     try { registro = await navigator.serviceWorker.register('/sw.js'); await navigator.serviceWorker.ready; } catch {}
   }
